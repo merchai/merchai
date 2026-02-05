@@ -1,0 +1,16 @@
+{
+    "name": "MerchAI Dev",
+    "dockerComposeFile": "docker-compose.yml",
+    "service": "app",
+    "workspaceFolder": "/app",
+    "shutdownAction": "stopCompose",
+    "customizations": {
+      "vscode": {
+        "extensions": [
+          "ms-azuretools.vscode-docker",
+          "ms-python.python",
+          "charliermarsh.ruff"
+        ]
+      }
+    }
+  }  
