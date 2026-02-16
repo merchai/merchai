@@ -5,7 +5,6 @@ API_URL = "https://api.perplexity.ai/chat/completions"
 
 
 def query_perplexity(prompt: str) -> dict:
-    """Send prompt to Perplexity API and return JSON response."""
 
     api_key = os.getenv("PERPLEXITY_API_KEY")  # get key from env
 
