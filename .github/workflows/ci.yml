@@ -32,4 +32,5 @@ jobs:
         run: mypy .
 
       - name: Pytest
-        run: pytest -q
+        # run: pytest -q
+        run: PYTHONPATH=. pytest -q
