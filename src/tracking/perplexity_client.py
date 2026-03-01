@@ -24,7 +24,12 @@ def query_perplexity(prompt: str) -> dict:
     }
 
     try:
-        response = requests.post(API_URL, json=payload, headers=headers)
+        response =  requests.post(
+            API_URL,
+            json=payload,
+            headers=headers,
+            timeout=10
+        )
         response.raise_for_status()  # raise error if bad status
         return response.json()
 
