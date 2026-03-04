@@ -1,12 +1,14 @@
 import os
+from typing import Dict, Any
 import requests
 
 API_URL = "https://api.perplexity.ai/chat/completions"
 
 
-def query_perplexity(prompt: str) -> dict:
+def query_perplexity(prompt: str) -> Dict[str, Any]:
+    """Send prompt to Perplexity API and return JSON response."""
 
-    api_key = os.getenv("PERPLEXITY_API_KEY")  # get key from env
+    api_key = os.getenv("PERPLEXITY_API_KEY")
 
     if not api_key:
         raise ValueError("Missing PERPLEXITY_API_KEY")
@@ -17,24 +19,24 @@ def query_perplexity(prompt: str) -> dict:
     }
 
     payload = {
-        "model": "sonar-pro",  # model name
+        "model": "sonar-pro",
         "messages": [
             {"role": "user", "content": prompt}
         ],
     }
 
     try:
-        response =  requests.post(
+        response = requests.post(
             API_URL,
             json=payload,
             headers=headers,
-            timeout=10
+            timeout=10,
         )
-        response.raise_for_status()  # raise error if bad status
+        response.raise_for_status()
         return response.json()
 
     except requests.exceptions.RequestException as e:
-        return {"error": str(e)}  # graceful error
+        return {"error": str(e)}
 
 
 if __name__ == "__main__":
