@@ -9,7 +9,8 @@ description = "MerchAI NOBE Analysis App"
 authors = [{name = "MerchAI Team"}]
 dependencies = [
     "requests",
-    "streamlit",
+    "flask",
+    "flask-cors",
 ]
 requires-python = ">=3.11"
 

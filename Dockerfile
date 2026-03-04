@@ -20,6 +20,7 @@ RUN pip install --no-cache-dir \
   mypy==1.11.2 \
   pytest==8.3.3 \
   requests \
-  streamlit
+  flask \
+  flask-cors
 
 CMD ["bash"]

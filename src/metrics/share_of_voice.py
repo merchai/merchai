@@ -1,76 +1,107 @@
 """
 src/metrics/share_of_voice.py
 ------------------------------
-Core Share of Voice metric for MerchAI Phase 1 MVP.
+Core Share of Voice metric for MerchAI.
 
-Takes extracted brand mentions and returns a normalised distribution
-showing each brand's relative frequency within an AI-generated response.
+Takes extracted brand mentions from an AI-generated response and returns
+a normalised visibility distribution — the foundation of the MerchAI
+analytics pipeline.
 
-This module is:
-  - Pure Python, no external dependencies
-  - Deterministic: identical input always produces identical output
-  - Case-preserving: output keys match the first-seen capitalisation
+Rules
+-----
+- Pure Python, zero external dependencies
+- Deterministic: identical input → identical output, always
+- Case-insensitive counting, first-seen capitalisation preserved in output
+- Blank/whitespace entries silently ignored
 """
 
 from __future__ import annotations
+from dataclasses import dataclass
 
 
-def compute_share_of_voice(mentions: list[str]) -> dict[str, float]:
+@dataclass(frozen=True)
+class ShareOfVoiceResult:
     """
-    Compute Share of Voice across brands from a list of mentions.
+    Full result from compute_share_of_voice().
 
-    Each brand's score is its proportion of total mentions, rounded to 2
-    decimal places. Comparison is case-insensitive; output keys preserve
-    the capitalisation of the first occurrence of each brand.
+    Attributes
+    ----------
+    shares    : brand → normalised share (0.0–1.0, 2 dp)
+    counts    : brand → raw mention count
+    total     : total valid mentions processed
+    ranked    : [(brand, share), ...] sorted by share desc, alpha tiebreak
+    top_brand : highest-share brand, or None if no mentions
+    """
+    shares: dict[str, float]
+    counts: dict[str, int]
+    total: int
+    ranked: list[tuple[str, float]]
+    top_brand: str | None
+
+
+def compute_share_of_voice(
+    mentions: list[str],
+    *,
+    query_label: str = "",
+) -> ShareOfVoiceResult:
+    """
+    Compute Share of Voice across brands from a flat list of mentions.
 
     Parameters
     ----------
-    mentions:
-        Flat list of brand mention strings extracted from an AI response.
-        Blank strings and whitespace-only entries are ignored.
+    mentions :
+        List of brand mention strings extracted from an AI response.
+    query_label :
+        Optional label for the query / campaign (for caller tagging only).
 
     Returns
     -------
-    dict mapping brand name → normalised share (0.0 – 1.0).
-    Returns an empty dict when no valid mentions are provided.
+    ShareOfVoiceResult
 
     Raises
     ------
-    TypeError
-        If *mentions* is not a list, or any element is not a string.
+    TypeError  if mentions is not a list, or any element is not a str.
 
     Examples
     --------
-    >>> compute_share_of_voice(["Nike", "Adidas", "Nike"])
+    >>> r = compute_share_of_voice(["Nike", "Adidas", "Nike"])
+    >>> r.shares
     {'Nike': 0.67, 'Adidas': 0.33}
-
-    >>> compute_share_of_voice([])
-    {}
+    >>> r.top_brand
+    'Nike'
     """
     if not isinstance(mentions, list):
         raise TypeError(f"mentions must be a list, got {type(mentions).__name__}")
 
-    # ── Count occurrences (case-insensitive, preserve first-seen casing) ──
-    counts: dict[str, int] = {}        # key = normalised lowercase
-    display: dict[str, str] = {}       # key = normalised lowercase, value = display name
+    counts: dict[str, int] = {}
+    display: dict[str, str] = {}
 
     for item in mentions:
         if not isinstance(item, str):
-            raise TypeError(f"each mention must be a str, got {type(item).__name__}: {item!r}")
-        normalised = item.strip().lower()
-        if not normalised:
+            raise TypeError(
+                f"each mention must be a str, got {type(item).__name__}: {item!r}"
+            )
+        key = item.strip().lower()
+        if not key:
             continue
-        if normalised not in counts:
-            counts[normalised] = 0
-            display[normalised] = item.strip()   # first-seen capitalisation
-        counts[normalised] += 1
+        if key not in counts:
+            counts[key] = 0
+            display[key] = item.strip()
+        counts[key] += 1
 
     total = sum(counts.values())
-    if total == 0:
-        return {}
 
-    # ── Normalise ─────────────────────────────────────────────────────────
-    return {
-        display[key]: round(count / total, 2)
-        for key, count in counts.items()
-    }
+    if total == 0:
+        return ShareOfVoiceResult(shares={}, counts={}, total=0, ranked=[], top_brand=None)
+
+    shares = {display[k]: round(v / total, 2) for k, v in counts.items()}
+    display_counts = {display[k]: v for k, v in counts.items()}
+    ranked = sorted(shares.items(), key=lambda x: (-x[1], x[0]))
+
+    return ShareOfVoiceResult(
+        shares=shares,
+        counts=display_counts,
+        total=total,
+        ranked=ranked,
+        top_brand=ranked[0][0] if ranked else None,
+    )
