@@ -28,8 +28,19 @@ MerchAI is a Generative Engine Optimization (GEO) and Brand Visibility Tracking 
    - `docker compose exec app mypy .`
    - `docker compose exec app pytest -q`
 
+## Dashboard
+Run the brand-visibility dashboard locally:
+```bash
+streamlit run app/dashboard.py
+```
+Or from Docker:
+```bash
+docker compose exec app streamlit run app/dashboard.py --server.headless true
+```
+
 ## Structure
 - `src/` application code
+- `app/` Streamlit dashboard
 - `tests/` tests
 - `.github/workflows/ci.yml` CI checks for lint, typecheck, tests
 - `.devcontainer/` dev container config
