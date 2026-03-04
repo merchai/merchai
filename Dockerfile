@@ -6,9 +6,13 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+ENV CHROMEDRIVER_PATH=/usr/bin/chromedriver
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
   curl \
   git \
+  chromium \
+  chromium-driver \
   && rm -rf /var/lib/apt/lists/*
 
 RUN pip install --no-cache-dir --upgrade pip
@@ -20,6 +24,7 @@ RUN pip install --no-cache-dir \
   mypy==1.11.2 \
   pytest==8.3.3 \
   requests \
+  selenium>=4.0.0 \
   streamlit
 
 CMD ["bash"]
