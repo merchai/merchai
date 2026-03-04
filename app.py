@@ -56,17 +56,25 @@ def share_of_voice():
 
     # ── Compute ───────────────────────────────────────────────────────────────
     try:
-        result = compute_share_of_voice(mentions, query_label=query_label)
+        shares = compute_share_of_voice(mentions)
     except TypeError as exc:
         return jsonify({"error": str(exc)}), 400
 
+    counts: dict[str, int] = {}
+    for m in mentions:
+        key = m.strip()
+        if key:
+            counts[key] = counts.get(key, 0) + 1
+
+    ranked = sorted(shares.items(), key=lambda x: (-x[1], x[0]))
+
     return jsonify({
         "query_label": query_label,
-        "shares":      result.shares,
-        "counts":      result.counts,
-        "total":       result.total,
-        "ranked":      [{"brand": b, "share": s} for b, s in result.ranked],
-        "top_brand":   result.top_brand,
+        "shares":      shares,
+        "counts":      counts,
+        "total":       len([m for m in mentions if m.strip()]),
+        "ranked":      [{"brand": b, "share": s} for b, s in ranked],
+        "top_brand":   ranked[0][0] if ranked else None,
     })
 
 
