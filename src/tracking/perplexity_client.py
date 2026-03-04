@@ -1,5 +1,6 @@
 import os
 from typing import Dict, Any
+
 import requests
 
 API_URL = "https://api.perplexity.ai/chat/completions"
@@ -21,7 +22,7 @@ def query_perplexity(prompt: str) -> Dict[str, Any]:
     payload = {
         "model": "sonar-pro",
         "messages": [
-            {"role": "user", "content": prompt}
+            {"role": "user", "content": prompt},
         ],
     }
 
