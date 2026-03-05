@@ -6,26 +6,18 @@ const BRAND_COLORS = [
   "#F04C7A", "#A84CF0", "#F0F04C",
 ];
 
-// ── Pure JS mirror of the Python backend ─────────────────────────────────────
-function computeShareOfVoice(mentions) {
-  const counts = {};
-  const display = {};
-  for (const item of mentions) {
-    const key = item.trim().toLowerCase();
-    if (!key) continue;
-    if (!(key in counts)) { counts[key] = 0; display[key] = item.trim(); }
-    counts[key]++;
+const CONFIDENCE_COLOR = { Low: "#F04C7A", Medium: "#F0A84C", High: "#4CF0A8" };
+
+// ── Brand extraction ──────────────────────────────────────────────────────────
+const MULTI_WORD_BRANDS = ["New Balance", "Under Armour", "On Running", "K-Swiss", "Le Coq Sportif"];
+
+function extractBrand(line) {
+  const trimmed = line.trim();
+  if (!trimmed) return "";
+  for (const brand of MULTI_WORD_BRANDS) {
+    if (trimmed.toLowerCase().startsWith(brand.toLowerCase())) return brand;
   }
-  const total = Object.values(counts).reduce((a, b) => a + b, 0);
-  if (total === 0) return { shares: {}, counts: {}, total: 0, ranked: [], top_brand: null };
-  const shares = {};
-  const displayCounts = {};
-  for (const k of Object.keys(counts)) {
-    shares[display[k]] = Math.round((counts[k] / total) * 100) / 100;
-    displayCounts[display[k]] = counts[k];
-  }
-  const ranked = Object.entries(shares).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  return { shares, counts: displayCounts, total, ranked, top_brand: ranked[0]?.[0] ?? null };
+  return trimmed.split(/\s+/)[0];
 }
 
 const DEMO_QUERIES = [
@@ -34,6 +26,17 @@ const DEMO_QUERIES = [
   { label: "Smartphone comparison", mentions: ["Apple", "Samsung", "Apple", "Google", "Apple", "Samsung", "Apple", "OnePlus", "Samsung"] },
 ];
 
+// ── Download helper ───────────────────────────────────────────────────────────
+function triggerDownload(content, filename, type) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 // ── Animated number ───────────────────────────────────────────────────────────
 function AnimatedNumber({ value, suffix = "", decimals = 0 }) {
   const [display, setDisplay] = useState(0);
@@ -41,13 +44,11 @@ function AnimatedNumber({ value, suffix = "", decimals = 0 }) {
   useEffect(() => {
     const start = Date.now();
     const duration = 800;
-    const from = 0;
-    const to = value;
     const tick = () => {
       const elapsed = Date.now() - start;
       const progress = Math.min(elapsed / duration, 1);
       const eased = 1 - Math.pow(1 - progress, 3);
-      setDisplay(from + (to - from) * eased);
+      setDisplay(value * eased);
       if (progress < 1) raf.current = requestAnimationFrame(tick);
     };
     raf.current = requestAnimationFrame(tick);
@@ -57,7 +58,7 @@ function AnimatedNumber({ value, suffix = "", decimals = 0 }) {
 }
 
 // ── Bar row ───────────────────────────────────────────────────────────────────
-function BrandBar({ brand, share, count, total, rank, color, animate }) {
+function BrandBar({ brand, share, count, rank, color, animate, isTop }) {
   const pct = Math.round(share * 100);
   const [width, setWidth] = useState(0);
   useEffect(() => {
@@ -72,16 +73,17 @@ function BrandBar({ brand, share, count, total, rank, color, animate }) {
           <span style={{
             width: 22, height: 22, borderRadius: "50%",
             background: color, display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#0a0a0a", flexShrink: 0
+            justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#0a0a0a", flexShrink: 0,
           }}>{rank + 1}</span>
-          <span style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", fontFamily: "'Syne', sans-serif" }}>{brand}</span>
-        </div>
-        <div style={{ display: "flex", gap: 16, alignItems: "baseline" }}>
-          <span style={{ fontSize: 12, color: "#555", fontFamily: "monospace" }}>{count} mention{count !== 1 ? "s" : ""}</span>
-          <span style={{ fontSize: 18, fontWeight: 700, color, fontFamily: "monospace", minWidth: 48, textAlign: "right" }}>
-            {animate ? <AnimatedNumber value={pct} suffix="%" /> : `${pct}%`}
+          <span style={{ fontSize: 15, fontWeight: 600, color: "#f0f0f0", fontFamily: "'Syne', sans-serif" }}>
+            {brand}
           </span>
+          {isTop && <span style={{ fontSize: 12, color: "#C8F04C", lineHeight: 1 }} title="Leader">♛</span>}
         </div>
+        <span style={{ fontSize: 13, fontWeight: 700, color, fontFamily: "monospace" }}>
+          {animate ? <AnimatedNumber value={pct} suffix="%" /> : `${pct}%`}
+          <span style={{ fontSize: 11, color: "#555", fontWeight: 400 }}> ({count})</span>
+        </span>
       </div>
       <div style={{ height: 6, background: "#1a1a1a", borderRadius: 3, overflow: "hidden" }}>
         <div style={{
@@ -102,19 +104,38 @@ export default function App() {
   const [animate, setAnimate] = useState(false);
   const [activeDemo, setActiveDemo] = useState(null);
   const [inputError, setInputError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
 
-  const runAnalysis = (mentions, label) => {
+  const runAnalysis = async (mentions, label) => {
     if (!mentions.length) { setInputError("Enter at least one brand mention."); return; }
     setInputError("");
+    setApiError("");
     setResult(null);
-    setTimeout(() => {
+    setLoading(true);
+    setAnimate(false);
+    try {
+      const res = await fetch("/api/share-of-voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mentions, query_label: label }),
+      });
+      let data;
+      try { data = await res.json(); } catch {
+        throw new Error("Backend unreachable — make sure it's running on port 5000.");
+      }
+      if (!res.ok) throw new Error(data.error || "Request failed");
       setAnimate(true);
-      setResult(computeShareOfVoice(mentions));
-    }, 50);
+      setResult(data);
+    } catch (err) {
+      setApiError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = () => {
-    const mentions = input.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+    const mentions = input.split(/[\n,]+/).map(extractBrand).filter(Boolean);
     runAnalysis(mentions, queryLabel);
     setActiveDemo(null);
   };
@@ -128,6 +149,20 @@ export default function App() {
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSubmit();
+  };
+
+  const exportCSV = () => {
+    if (!result) return;
+    const rows = [["Brand", "Share (%)", "Mentions"]];
+    result.ranked.forEach(({ brand, share }) => {
+      rows.push([brand, Math.round(share * 100), result.counts[brand]]);
+    });
+    triggerDownload(rows.map(r => r.join(",")).join("\n"), "share-of-voice.csv", "text/csv");
+  };
+
+  const exportJSON = () => {
+    if (!result) return;
+    triggerDownload(JSON.stringify(result, null, 2), "share-of-voice.json", "application/json");
   };
 
   return (
@@ -157,7 +192,7 @@ export default function App() {
           </span>
           <span style={{
             fontSize: 10, letterSpacing: 2, color: "#444",
-            textTransform: "uppercase", marginLeft: 4, fontFamily: "'DM Mono', monospace"
+            textTransform: "uppercase", marginLeft: 4, fontFamily: "'DM Mono', monospace",
           }}>Share of Voice</span>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
@@ -239,37 +274,50 @@ export default function App() {
             One per line or comma-separated · ⌘↵ to run
           </p>
 
-          <button onClick={handleSubmit} style={{
+          <button onClick={handleSubmit} disabled={loading} style={{
             width: "100%", padding: "13px 0",
-            background: "#C8F04C", color: "#0a0a0a",
+            background: loading ? "#3a4a14" : "#C8F04C", color: "#0a0a0a",
             border: "none", borderRadius: 8, fontSize: 14, fontWeight: 700,
-            fontFamily: "'Syne', sans-serif", cursor: "pointer", letterSpacing: 0.3,
-            transition: "opacity 0.15s",
+            fontFamily: "'Syne', sans-serif", cursor: loading ? "default" : "pointer",
+            letterSpacing: 0.3, transition: "all 0.15s",
           }}
-            onMouseEnter={e => e.target.style.opacity = "0.88"}
-            onMouseLeave={e => e.target.style.opacity = "1"}
+            onMouseEnter={e => { if (!loading) e.target.style.opacity = "0.88"; }}
+            onMouseLeave={e => { e.target.style.opacity = "1"; }}
           >
-            Compute Share of Voice →
+            {loading ? "Analyzing…" : "Compute Share of Voice →"}
           </button>
-
-          {/* Code callout */}
-          <div style={{
-            marginTop: 24, background: "#0e0e0e", border: "1px solid #1a1a1a",
-            borderRadius: 8, padding: "14px 16px",
-          }}>
-            <p style={{ fontSize: 10, letterSpacing: 2, color: "#333", textTransform: "uppercase", margin: "0 0 8px", fontFamily: "'DM Mono', monospace" }}>
-              Powered by
-            </p>
-            <code style={{ fontSize: 12, color: "#4CF0A8", fontFamily: "'DM Mono', monospace", lineHeight: 1.7 }}>
-              src/metrics/share_of_voice.py<br />
-              <span style={{ color: "#555" }}>→</span> compute_share_of_voice(mentions)
-            </code>
-          </div>
         </div>
 
         {/* Right — Results panel */}
         <div style={{ minHeight: 400 }}>
-          {!result ? (
+          {loading && (
+            <div style={{
+              height: 400, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", gap: 12, color: "#333",
+            }}>
+              <div style={{ fontSize: 32, animation: "spin 1.2s linear infinite" }}>◌</div>
+              <style>{`@keyframes spin { to { transform: rotate(360deg) } }`}</style>
+              <p style={{ fontSize: 13, fontFamily: "'DM Mono', monospace" }}>Analyzing mentions…</p>
+            </div>
+          )}
+
+          {!loading && apiError && (
+            <div style={{
+              height: 400, display: "flex", flexDirection: "column",
+              alignItems: "center", justifyContent: "center", gap: 8,
+              border: "1px dashed #2a1a1a", borderRadius: 12, color: "#F04C7A",
+            }}>
+              <div style={{ fontSize: 28 }}>⚠</div>
+              <p style={{ fontSize: 13, fontFamily: "'DM Mono', monospace", textAlign: "center", maxWidth: 280 }}>
+                {apiError}
+              </p>
+              <p style={{ fontSize: 11, color: "#444", fontFamily: "'DM Mono', monospace" }}>
+                Is the backend running on port 5000?
+              </p>
+            </div>
+          )}
+
+          {!loading && !apiError && !result && (
             <div style={{
               height: 400, display: "flex", flexDirection: "column",
               alignItems: "center", justifyContent: "center", gap: 12,
@@ -280,65 +328,141 @@ export default function App() {
                 Results will appear here
               </p>
             </div>
-          ) : (
+          )}
+
+          {!loading && result && (
             <div style={{ animation: "fadeIn 0.4s ease" }}>
               <style>{`@keyframes fadeIn { from { opacity:0; transform:translateY(10px) } to { opacity:1; transform:translateY(0) } }`}</style>
 
-              {/* Stats row */}
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12, marginBottom: 28 }}>
+              {/* Result header */}
+              <div style={{ marginBottom: 24 }}>
+                {result.query_label && (
+                  <h2 style={{
+                    fontFamily: "'Syne', sans-serif", fontSize: 17, fontWeight: 700,
+                    margin: "0 0 4px", color: "#e8e8e8",
+                  }}>
+                    "{result.query_label}"
+                  </h2>
+                )}
+                <p style={{ fontSize: 12, color: "#444", fontFamily: "'DM Mono', monospace", margin: 0 }}>
+                  {result.total_mentions} mention{result.total_mentions !== 1 ? "s" : ""} analyzed
+                  {" · "}{result.brand_count} brand{result.brand_count !== 1 ? "s" : ""} detected
+                </p>
+              </div>
+
+              {/* Visibility summary — 5 stat cards */}
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 20 }}>
                 {[
-                  { label: "Total Mentions", value: result.total, suffix: "", decimals: 0 },
-                  { label: "Brands Detected", value: result.ranked.length, suffix: "", decimals: 0 },
-                  { label: "Top Share", value: Math.round((result.ranked[0]?.[1] ?? 0) * 100), suffix: "%", decimals: 0 },
-                ].map(({ label, value, suffix, decimals }) => (
+                  { label: "Top Brand", value: result.top_brand, raw: true },
+                  { label: "Top Share", value: Math.round((result.top_share ?? 0) * 100), suffix: "%" },
+                  { label: "Mentions", value: result.total_mentions },
+                  { label: "Brands", value: result.brand_count },
+                  {
+                    label: "Confidence",
+                    value: result.confidence_level,
+                    raw: true,
+                    color: CONFIDENCE_COLOR[result.confidence_level],
+                  },
+                ].map(({ label, value, suffix = "", raw, color }) => (
                   <div key={label} style={{
                     background: "#0e0e0e", border: "1px solid #1a1a1a",
-                    borderRadius: 10, padding: "16px 20px",
+                    borderRadius: 10, padding: "12px 14px",
                   }}>
-                    <p style={{ fontSize: 10, color: "#444", textTransform: "uppercase", letterSpacing: 2, margin: "0 0 6px", fontFamily: "'DM Mono', monospace" }}>{label}</p>
-                    <p style={{ fontSize: 28, fontWeight: 800, margin: 0, fontFamily: "'Syne', sans-serif", color: "#C8F04C" }}>
-                      <AnimatedNumber value={value} suffix={suffix} decimals={decimals} />
-                    </p>
+                    <p style={{ fontSize: 9, color: "#444", textTransform: "uppercase", letterSpacing: 2, margin: "0 0 5px", fontFamily: "'DM Mono', monospace" }}>{label}</p>
+                    {raw ? (
+                      <p style={{ fontSize: 13, fontWeight: 700, margin: 0, fontFamily: "'Syne', sans-serif", color: color || "#C8F04C", lineHeight: 1.2, wordBreak: "break-word" }}>
+                        {value}
+                      </p>
+                    ) : (
+                      <p style={{ fontSize: 22, fontWeight: 800, margin: 0, fontFamily: "'Syne', sans-serif", color: "#C8F04C" }}>
+                        <AnimatedNumber value={value} suffix={suffix} />
+                      </p>
+                    )}
                   </div>
                 ))}
               </div>
 
-              {/* Query label */}
-              {queryLabel && (
-                <p style={{ fontSize: 12, color: "#444", fontFamily: "'DM Mono', monospace", marginBottom: 20 }}>
-                  Query: <span style={{ color: "#666" }}>"{queryLabel}"</span>
-                </p>
+              {/* Insight */}
+              {result.generated_insight && (
+                <div style={{
+                  marginBottom: 20, background: "#0c0f08",
+                  border: "1px solid #1e2812", borderRadius: 10, padding: "14px 18px",
+                }}>
+                  <p style={{ fontSize: 9, letterSpacing: 2, color: "#3a4a20", textTransform: "uppercase", margin: "0 0 6px", fontFamily: "'DM Mono', monospace" }}>
+                    AI Insight
+                  </p>
+                  <p style={{ fontSize: 13, color: "#a0b870", margin: 0, lineHeight: 1.65, fontFamily: "'DM Sans', sans-serif" }}>
+                    {result.generated_insight}
+                  </p>
+                </div>
               )}
 
               {/* Brand bars */}
               <div style={{
                 background: "#0c0c0c", border: "1px solid #161616",
-                borderRadius: 12, padding: "24px 28px",
+                borderRadius: 12, padding: "24px 28px", marginBottom: 16,
               }}>
                 <p style={{ fontSize: 10, letterSpacing: 2, color: "#333", textTransform: "uppercase", margin: "0 0 20px", fontFamily: "'DM Mono', monospace" }}>
                   Share of Voice Distribution
                 </p>
-                {result.ranked.map(([brand, share], i) => (
+                {result.ranked.map(({ brand, share }, i) => (
                   <BrandBar
                     key={brand} brand={brand} share={share}
-                    count={result.counts[brand]} total={result.total}
+                    count={result.counts[brand]}
                     rank={i} color={BRAND_COLORS[i % BRAND_COLORS.length]}
-                    animate={animate}
+                    animate={animate} isTop={i === 0}
                   />
                 ))}
               </div>
 
-              {/* Raw output */}
-              <div style={{
-                marginTop: 16, background: "#0a0a0a", border: "1px solid #141414",
-                borderRadius: 10, padding: "16px 20px",
-              }}>
-                <p style={{ fontSize: 10, letterSpacing: 2, color: "#2a2a2a", textTransform: "uppercase", margin: "0 0 10px", fontFamily: "'DM Mono', monospace" }}>
-                  Raw Output  <span style={{ color: "#1e1e1e" }}>· compute_share_of_voice()</span>
-                </p>
-                <pre style={{ margin: 0, fontSize: 12, color: "#3a3a3a", fontFamily: "'DM Mono', monospace", lineHeight: 1.7, overflowX: "auto" }}>
-                  <span style={{ color: "#4CF0A8" }}>{JSON.stringify(result.shares, null, 2)}</span>
-                </pre>
+              {/* Competitive gap */}
+              {Object.keys(result.competitive_gaps).length > 0 && (
+                <div style={{
+                  background: "#0a0a0a", border: "1px solid #141414",
+                  borderRadius: 10, padding: "16px 20px", marginBottom: 16,
+                }}>
+                  <p style={{ fontSize: 10, letterSpacing: 2, color: "#333", textTransform: "uppercase", margin: "0 0 12px", fontFamily: "'DM Mono', monospace" }}>
+                    Competitive Gap vs Leader
+                  </p>
+                  {Object.entries(result.competitive_gaps).map(([brand, gap]) => (
+                    <div key={brand} style={{
+                      display: "flex", justifyContent: "space-between",
+                      alignItems: "center", paddingBottom: 8, marginBottom: 8,
+                      borderBottom: "1px solid #151515",
+                    }}>
+                      <span style={{ fontSize: 13, color: "#aaa", fontFamily: "'DM Sans', sans-serif" }}>{brand}</span>
+                      <span style={{ fontSize: 12, color: "#F04C7A", fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>
+                        −{Math.abs(Math.round(gap * 100))}% behind leader
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Export */}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={exportCSV} style={{
+                  flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 12,
+                  border: "1px solid #222", background: "transparent",
+                  color: "#666", cursor: "pointer", fontFamily: "'DM Mono', monospace",
+                  transition: "all 0.15s",
+                }}
+                  onMouseEnter={e => { e.target.style.borderColor = "#C8F04C"; e.target.style.color = "#C8F04C"; }}
+                  onMouseLeave={e => { e.target.style.borderColor = "#222"; e.target.style.color = "#666"; }}
+                >
+                  ↓ Export CSV
+                </button>
+                <button onClick={exportJSON} style={{
+                  flex: 1, padding: "10px 0", borderRadius: 8, fontSize: 12,
+                  border: "1px solid #222", background: "transparent",
+                  color: "#666", cursor: "pointer", fontFamily: "'DM Mono', monospace",
+                  transition: "all 0.15s",
+                }}
+                  onMouseEnter={e => { e.target.style.borderColor = "#4CF0A8"; e.target.style.color = "#4CF0A8"; }}
+                  onMouseLeave={e => { e.target.style.borderColor = "#222"; e.target.style.color = "#666"; }}
+                >
+                  ↓ Export JSON
+                </button>
               </div>
             </div>
           )}
