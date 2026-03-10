@@ -25,6 +25,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS  # type: ignore[import-untyped]
 
 from src.metrics.share_of_voice import compute_analytics
+from src.extraction import extract_brands_from_text
 
 app = Flask(__name__)
 CORS(app)   # allow the React dev server to call us
@@ -61,6 +62,16 @@ def share_of_voice():
         return jsonify({"error": str(exc)}), 400
 
     return jsonify(result)
+
+
+@app.post("/api/extract-brands")
+def extract_brands_endpoint():
+    body = request.get_json(silent=True) or {}
+    text = body.get("text", "")
+    if not isinstance(text, str) or not text.strip():
+        return jsonify({"error": "text is required"}), 400
+    brands = extract_brands_from_text(text)
+    return jsonify({"brands": brands, "count": len(brands)})
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────
