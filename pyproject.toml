@@ -18,6 +18,8 @@ dev = [
     "ruff==0.6.9",
     "mypy==1.11.2",
     "pytest==8.3.3",
+    "types-requests",
+    "pandas-stubs"
 ]
 
 [tool.setuptools.packages.find]
