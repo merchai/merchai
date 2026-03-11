@@ -9,6 +9,7 @@ description = "MerchAI NOBE Analysis App"
 authors = [{name = "MerchAI Team"}]
 dependencies = [
     "requests",
+    "selenium>=4.0.0",
     "streamlit",
 ]
 requires-python = ">=3.11"
