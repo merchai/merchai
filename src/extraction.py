@@ -4,6 +4,7 @@ src/extraction.py
 from __future__ import annotations
 
 import re
+from typing import Any
 
 # Common English words that appear capitalised but are not brand names
 _STOPWORDS = {
@@ -63,38 +64,8 @@ def extract_brands_from_text(text: str) -> list[str]:
     return mentions
 
 
-def extract_brands(data: dict) -> list:
-    results: list[str] = []
-    _recurse(data, results)
-    return sorted(results)
-
-
-def _recurse(obj: object, results: list[str]) -> None:
-    if isinstance(obj, dict):
-        for key, value in obj.items():
-            if key == "brand" and isinstance(value, str):
-                results.append(value)
-            else:
-                _recurse(value, results)
-    elif isinstance(obj, list):
-        for item in obj:
-            _recurse(item, results)
-from typing import Any, List, Set
-
-def extract_brands(data: Any) -> List[str]:
-    """
-    Recursively extracts values associated with the key 'brand' from any nested JSON structure.
-
-    NOTE: This function currently only looks for explicit "brand" keys in structured JSON.
-    It does NOT perform free-text parsing or NLP extraction from unstructured text.
-    
-    Args:
-        data: A dict, list, or primitive usually representing parsed JSON.
-        
-    Returns:
-        A sorted list of unique brand names found associated with the key 'brand'.
-    """
-    brands: Set[str] = set()
+def extract_brands(data: Any) -> list[str]:
+    brands: set[str] = set()
 
     def _recurse(current_data: Any) -> None:
         if isinstance(current_data, dict):
@@ -107,4 +78,4 @@ def extract_brands(data: Any) -> List[str]:
                 _recurse(item)
 
     _recurse(data)
-    return sorted(list(brands))
+    return sorted(brands)
