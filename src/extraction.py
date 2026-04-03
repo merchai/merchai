@@ -30,10 +30,32 @@ _STOPWORDS = {
     "Latest", "Newest", "Older", "Affordable", "Expensive", "Budget", "Value",
     "Best-in-class", "Built", "Designed", "Made", "Based", "Focused",
     "Recommended", "Considered", "Widely", "Highly", "Generally",
-    # Product categories
+    "Quick", "Cheap", "Solid", "Decent", "Solid", "Okay", "Fine", "Nice",
+    "Solid", "Decent", "Solid", "Heavy", "Bright", "Loud", "Quiet", "Crisp",
+    # Common verbs used at sentence/line starts
+    "Fly", "Get", "Buy", "Use", "Try", "See", "Look", "Think", "Want",
+    "Need", "Go", "Take", "Make", "Pick", "Check", "Find", "Keep", "Stay",
+    "Read", "Watch", "Play", "Work", "Study", "Learn", "Know", "Show",
+    "Run", "Start", "Stop", "Turn", "Put", "Set", "Let", "Ask", "Tell",
+    "Give", "Come", "Skip", "Avoid", "Consider", "Choose", "Prefer",
+    # Product categories and generic nouns
     "Gaming", "Laptop", "Desktop", "Phone", "Tablet", "Device", "Computer",
     "Monitor", "Display", "Keyboard", "Mouse", "Speaker", "Camera", "Battery",
     "Charger", "Headphones", "Earbuds", "Webcam", "Microphone", "Printer",
+    "Music", "Audio", "Video", "Photo", "Sound", "User", "People", "Person",
+    "Pick", "Picks", "Option", "Options", "Choice", "Choices", "Recommendation",
+    "Price", "Quality", "Brand", "Product", "Market", "Review", "Rating",
+    # Hardware components and specs (not brands)
+    "GPU", "GPUs", "CPU", "CPUs", "RAM", "SSD", "HDD", "USB", "HDMI",
+    "PCIe", "VRAM", "BIOS", "UEFI", "TDP", "TGP", "FPS", "GHz", "MHz",
+    "RTX", "GTX", "RX", "Arc", "Iris", "Radeon", "GeForce",
+    # Display technologies
+    "OLED", "AMOLED", "QLED", "LCD", "LED", "IPS", "TN", "VA", "Mini",
+    "HDR", "HDRI", "QHD", "FHD", "UHD", "Hz",
+    # Product line names / series that are not standalone brands
+    "Ideapad", "IdeaPad", "ThinkPad", "Pavilion", "Inspiron", "Envy",
+    "Vivobook", "Zenbook", "ProArt", "Predator", "Nitro", "Helios",
+    "Omen", "Legion", "Yoga", "Flex", "Chromebook", "Macbook", "MacBook",
     # Generic product sub-brands / series words
     "Aurora", "Elite", "Titan", "Fusion", "Nexus", "Apex", "Zenith", "Vortex",
     "Eclipse", "Phantom", "Spectre", "Stealth", "Shadow", "Blaze", "Storm",

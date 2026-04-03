@@ -26,9 +26,12 @@ from flask_cors import CORS  # type: ignore[import-untyped]
 
 from src.metrics.share_of_voice import compute_analytics
 from src.extraction import extract_brands_from_text
+from src.storage import init_db, save_run
 
 app = Flask(__name__)
 CORS(app)   # allow the React dev server to call us
+
+init_db()
 
 
 # ── Routes ────────────────────────────────────────────────────────────────────
@@ -71,6 +74,7 @@ def extract_brands_endpoint():
     if not isinstance(text, str) or not text.strip():
         return jsonify({"error": "text is required"}), 400
     brands = extract_brands_from_text(text)
+    save_run(prompt=text, response=text, brands=brands)
     return jsonify({"brands": brands, "count": len(brands)})
 
 
