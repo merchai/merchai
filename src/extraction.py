@@ -109,6 +109,7 @@ def extract_brands_from_text(text: str) -> list[str]:
         if brand in _STOPWORDS:
             continue
         mentions.append(brand)
+        mentions.append(_normalize_to_brand(candidate))
     return mentions
 
 
