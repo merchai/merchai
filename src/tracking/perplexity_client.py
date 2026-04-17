@@ -42,4 +42,4 @@ def query_perplexity(prompt: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     result = query_perplexity("What brands sell hoodies?")
-    print(result)
+    print(result)#test comment
