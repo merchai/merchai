@@ -59,6 +59,36 @@ def save_run(prompt: str, response: str, brands: list[str]) -> int:
         return cursor.lastrowid  # type: ignore[return-value]
 
 
+def get_recent_run(prompt: str, within_hours: float = 24) -> dict | None:
+    """Return the most recent run for *prompt* within the given window, or None."""
+    if within_hours <= 0:
+        return None
+    cutoff = datetime.now(timezone.utc).timestamp() - within_hours * 3600
+    with _connect() as conn:
+        row = conn.execute(
+            """
+            SELECT id, prompt, timestamp, raw_response, brands_json
+            FROM runs
+            WHERE prompt = ?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (prompt,),
+        ).fetchone()
+    if row is None:
+        return None
+    run_ts = datetime.fromisoformat(row["timestamp"]).timestamp()
+    if run_ts < cutoff:
+        return None
+    return {
+        "id": row["id"],
+        "prompt": row["prompt"],
+        "timestamp": row["timestamp"],
+        "raw_response": row["raw_response"],
+        "brands": json.loads(row["brands_json"]),
+    }
+
+
 def get_all_runs() -> list[dict]:
     """Return all runs ordered by most recent first."""
     with _connect() as conn:
