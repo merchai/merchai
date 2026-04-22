@@ -26,7 +26,7 @@ from flask_cors import CORS  # type: ignore[import-untyped]
 
 from src.metrics.share_of_voice import compute_analytics
 from src.extraction import extract_brands_from_text
-from src.storage import init_db, save_run
+from src.storage import init_db, save_run, get_all_runs, get_recent_run
 
 app = Flask(__name__)
 CORS(app)   # allow the React dev server to call us
@@ -71,11 +71,24 @@ def share_of_voice():
 def extract_brands_endpoint():
     body = request.get_json(silent=True) or {}
     text = body.get("text", "")
+    query_label = body.get("query_label", "")
     if not isinstance(text, str) or not text.strip():
         return jsonify({"error": "text is required"}), 400
+
+    dedup_hours = float(os.getenv("DEDUP_WINDOW_HOURS", 24))
+    prompt_key = query_label or text
+    cached = get_recent_run(prompt_key, within_hours=dedup_hours)
+    if cached is not None:
+        return jsonify({"brands": cached["brands"], "count": len(cached["brands"]), "cached": True, "cached_at": cached["timestamp"]})
+
     brands = extract_brands_from_text(text)
-    save_run(prompt=text, response=text, brands=brands)
-    return jsonify({"brands": brands, "count": len(brands)})
+    save_run(prompt=prompt_key, response=text, brands=brands)
+    return jsonify({"brands": brands, "count": len(brands), "cached": False})
+
+
+@app.get("/api/runs")
+def runs():
+    return jsonify(get_all_runs())
 
 
 # ── Entry point ───────────────────────────────────────────────────────────────

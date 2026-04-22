@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react";
 
 // ── Colour palette per rank ───────────────────────────────────────────────────
 const BRAND_COLORS = [
@@ -205,6 +205,15 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
   const [copied, setCopied] = useState(false);
+  const [runs, setRuns] = useState(null);
+  const [showRuns, setShowRuns] = useState(false);
+
+  const loadRuns = async () => {
+    const res = await fetch("/api/runs");
+    const data = await res.json();
+    setRuns(data);
+    setShowRuns(true);
+  };
 
   const runAnalysis = async (mentions, label) => {
     if (!mentions.length) { setInputError("Enter at least one brand mention."); return; }
@@ -236,7 +245,7 @@ export default function App() {
       try {
         const extractRes = await fetch("/api/extract-brands", {
           method: "POST", headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ text: input }),
+          body: JSON.stringify({ text: input, query_label: queryLabel }),
         });
         let extractData;
         try { extractData = await extractRes.json(); } catch {
@@ -255,7 +264,7 @@ export default function App() {
           throw new Error("Backend unreachable — make sure it's running on port 5000.");
         }
         if (!res.ok) throw new Error(data.error || "Analysis failed");
-        setAnimate(true); setResult({ ...data, from_response: true });
+        setAnimate(true); setResult({ ...data, from_response: true, cached: extractData.cached, cached_at: extractData.cached_at });
       } catch (err) { setApiError(err.message); }
       finally { setLoading(false); }
     } else {
@@ -466,6 +475,17 @@ export default function App() {
                   {result.total_mentions} mention{result.total_mentions !== 1 ? "s" : ""} analyzed
                   {" · "}{result.brand_count} brand{result.brand_count !== 1 ? "s" : ""} detected
                   {result.from_response && <span style={{ color: "#4CF0A8" }}> · extracted from AI response</span>}
+                  {result.cached && (
+                    <span style={{
+                      display: "inline-block", marginLeft: 8,
+                      fontSize: 9, fontWeight: 700, color: "#0a0a0a",
+                      background: "#4CC8F0", borderRadius: 4,
+                      padding: "2px 6px", fontFamily: "'DM Mono', monospace",
+                      letterSpacing: 1, textTransform: "uppercase", verticalAlign: "middle",
+                    }}
+                      title={result.cached_at ? `Cached at ${new Date(result.cached_at).toLocaleString()}` : "Served from cache"}
+                    >Cached</span>
+                  )}
                 </p>
               </div>
 
@@ -597,6 +617,52 @@ export default function App() {
                 >↓ Export JSON</button>
               </div>
             </div>
+          )}
+        </div>
+      </div>
+
+      {/* Run History */}
+      <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 40px 60px" }}>
+        <div style={{ borderTop: "1px solid #161616", paddingTop: 28 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: showRuns ? 20 : 0 }}>
+            <div>
+              <span style={{ fontSize: 11, letterSpacing: 2, color: "#444", textTransform: "uppercase", ...monoStyle }}>Pipeline Run History</span>
+              <span style={{ fontSize: 11, color: "#2a2a2a", ...monoStyle }}> · persisted to SQLite</span>
+            </div>
+            <button onClick={showRuns ? () => setShowRuns(false) : loadRuns} style={{
+              padding: "6px 16px", borderRadius: 6, fontSize: 11, border: "1px solid #222",
+              background: "transparent", color: "#555", cursor: "pointer", ...monoStyle,
+            }}>
+              {showRuns ? "Hide" : "Show runs →"}
+            </button>
+          </div>
+
+          {showRuns && runs !== null && (
+            runs.length === 0
+              ? <p style={{ fontSize: 12, color: "#333", ...monoStyle }}>No runs saved yet. Analyze something first.</p>
+              : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {runs.map(run => (
+                    <div key={run.id} style={{
+                      background: "#0c0c0c", border: "1px solid #161616", borderRadius: 10,
+                      padding: "14px 18px", display: "grid",
+                      gridTemplateColumns: "32px 1fr auto", gap: 16, alignItems: "start",
+                    }}>
+                      <span style={{ fontSize: 11, color: "#333", ...monoStyle, paddingTop: 2 }}>#{run.id}</span>
+                      <div>
+                        <p style={{ fontSize: 13, color: "#ccc", margin: "0 0 4px", fontFamily: "'DM Sans', sans-serif" }}>
+                          {run.prompt.length > 120 ? run.prompt.slice(0, 120) + "…" : run.prompt}
+                        </p>
+                        <p style={{ fontSize: 11, color: "#444", margin: 0, ...monoStyle }}>
+                          {run.brands.length} brand{run.brands.length !== 1 ? "s" : ""} extracted
+                          {run.brands.length > 0 && <span style={{ color: "#333" }}> · {run.brands.slice(0, 5).join(", ")}{run.brands.length > 5 ? "…" : ""}</span>}
+                        </p>
+                      </div>
+                      <span style={{ fontSize: 10, color: "#333", ...monoStyle, whiteSpace: "nowrap", paddingTop: 2 }}>
+                        {new Date(run.timestamp).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
           )}
         </div>
       </div>
