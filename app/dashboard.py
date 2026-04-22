@@ -1,14 +1,20 @@
 import streamlit as st
-import pandas as pd
-st.title("Share of Voice Dashboard")
-#below is mock data
-df = pd.DataFrame(
-    {
-        "Brand": ["Nike", "Adidas", "Puma", "Under Armour"],
-        "Share of Voice (%)": [42, 30, 18, 10],
-    }
-)
-st.subheader("Table")
-st.dataframe(df)
-st.subheader("Bar Chart")
-st.bar_chart(df.set_index("Brand"))
+from tracking.perplexity_client import query_perplexity
+
+st.title("Perplexity Client Demo")
+
+prompt = st.text_input("Ask a question")
+
+if st.button("Run Query"):
+    if prompt.strip():
+        result = query_perplexity(prompt)
+
+        if "error" in result:
+            st.error(result["error"])
+        else:
+            try:
+                st.write(result["choices"][0]["message"]["content"])
+            except Exception:
+                st.json(result)
+    else:
+        st.warning("Enter a question first.")
