@@ -33,3 +33,6 @@ MerchAI is a Generative Engine Optimization (GEO) and Brand Visibility Tracking 
 - `tests/` tests
 - `.github/workflows/ci.yml` CI checks for lint, typecheck, tests
 - `.devcontainer/` dev container config
+
+## Logging
+- Set log level verbosity with: `export LOG_LEVEL=DEBUG` (options: DEBUG, INFO, WARNING, ERROR)

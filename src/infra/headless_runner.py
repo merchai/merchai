@@ -15,6 +15,10 @@ from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.chrome.service import Service
 
+from src.logger import get_logger
+
+logger = get_logger(__name__)
+
 
 def get_page_html(url: str, timeout_seconds: int = 30) -> str:
     """
@@ -57,14 +61,17 @@ def get_page_html(url: str, timeout_seconds: int = 30) -> str:
 def main() -> None:
     """CLI entrypoint: load a URL and print its HTML to stdout."""
     if len(sys.argv) < 2:
-        print("Usage: python -m src.infra.headless_runner <url>", file=sys.stderr)
+        #print("Usage: python -m src.infra.headless_runner <url>", file=sys.stderr)
+        logger.error("Usage: python -m src.infra.headless_runner <url>")
         sys.exit(1)
     url = sys.argv[1]
     try:
         html = get_page_html(url)
-        print(html)
+        #print(html)
+        logger.info(f"Loaded {len(html)} characters from {url}")
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        #print(f"Error: {e}", file=sys.stderr)
+        logger.error(f"Error: {e}")
         sys.exit(1)
 
 

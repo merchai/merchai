@@ -1,9 +1,11 @@
 import os
 from typing import Dict, Any
+from src.logger import get_logger
 
 import requests
 
 API_URL = "https://api.perplexity.ai/chat/completions"
+logger = get_logger(__name__)
 
 
 def query_perplexity(prompt: str) -> Dict[str, Any]:
@@ -42,4 +44,4 @@ def query_perplexity(prompt: str) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     result = query_perplexity("What brands sell hoodies?")
-    print(result)
+    logger.info(result)
