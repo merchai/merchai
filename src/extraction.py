@@ -20,6 +20,51 @@ _STOPWORDS = {
     "Would", "Could", "Should", "May", "Might", "Must", "Shall", "Can",
     "Including", "Include", "Such", "Like", "Well", "Known", "Popular",
     "Often", "Also", "Both", "Overall", "Another", "However", "While",
+    # Adjectives and descriptors that are not brand names
+    "Excellent", "Strong", "Great", "Good", "Better", "Premium", "Perfect",
+    "Ideal", "Notable", "Impressive", "Reliable", "Powerful", "Portable",
+    "Lightweight", "Thin", "Sleek", "Durable", "Fast", "Smooth", "Clean",
+    "Smart", "High", "Low", "Long", "Short", "Wide", "Deep", "Full", "Rich",
+    "True", "Real", "Easy", "Hard", "Old", "Young", "Large", "Small",
+    "Simple", "Complex", "Basic", "Advanced", "Standard", "Classic", "Modern",
+    "Latest", "Newest", "Older", "Affordable", "Expensive", "Budget", "Value",
+    "Best-in-class", "Built", "Designed", "Made", "Based", "Focused",
+    "Recommended", "Considered", "Widely", "Highly", "Generally",
+    "Quick", "Cheap", "Solid", "Decent", "Solid", "Okay", "Fine", "Nice",
+    "Solid", "Decent", "Solid", "Heavy", "Bright", "Loud", "Quiet", "Crisp",
+    # Common verbs used at sentence/line starts
+    "Fly", "Get", "Buy", "Use", "Try", "See", "Look", "Think", "Want",
+    "Need", "Go", "Take", "Make", "Pick", "Check", "Find", "Keep", "Stay",
+    "Read", "Watch", "Play", "Work", "Study", "Learn", "Know", "Show",
+    "Run", "Start", "Stop", "Turn", "Put", "Set", "Let", "Ask", "Tell",
+    "Give", "Come", "Skip", "Avoid", "Consider", "Choose", "Prefer",
+    # Product categories and generic nouns
+    "Gaming", "Laptop", "Desktop", "Phone", "Tablet", "Device", "Computer",
+    "Monitor", "Display", "Keyboard", "Mouse", "Speaker", "Camera", "Battery",
+    "Charger", "Headphones", "Earbuds", "Webcam", "Microphone", "Printer",
+    "Music", "Audio", "Video", "Photo", "Sound", "User", "People", "Person",
+    "Pick", "Picks", "Option", "Options", "Choice", "Choices", "Recommendation",
+    "Price", "Quality", "Brand", "Product", "Market", "Review", "Rating",
+    # Hardware components and specs (not brands)
+    "GPU", "GPUs", "CPU", "CPUs", "RAM", "SSD", "HDD", "USB", "HDMI",
+    "PCIe", "VRAM", "BIOS", "UEFI", "TDP", "TGP", "FPS", "GHz", "MHz",
+    "RTX", "GTX", "RX", "Arc", "Iris", "Radeon", "GeForce",
+    # Display technologies
+    "OLED", "AMOLED", "QLED", "LCD", "LED", "IPS", "TN", "VA", "Mini",
+    "HDR", "HDRI", "QHD", "FHD", "UHD", "Hz",
+    # Product line names / series that are not standalone brands
+    "Ideapad", "IdeaPad", "ThinkPad", "Pavilion", "Inspiron", "Envy",
+    "Vivobook", "Zenbook", "ProArt", "Predator", "Nitro", "Helios",
+    "Omen", "Legion", "Yoga", "Flex", "Chromebook", "Macbook", "MacBook",
+    # Generic product sub-brands / series words
+    "Aurora", "Elite", "Titan", "Fusion", "Nexus", "Apex", "Zenith", "Vortex",
+    "Eclipse", "Phantom", "Spectre", "Stealth", "Shadow", "Blaze", "Storm",
+    "Vision", "Pro", "Plus", "Max", "Mini", "Lite", "Go", "Ultra",
+    "Series", "Edition", "Generation", "Version", "Model", "Line", "Range",
+    "Collection", "Family", "Platform", "System", "Suite",
+    # Tech / feature words
+    "Technology", "Software", "Hardware", "Feature", "Experience",
+    "Performance", "Innovation", "Intelligence", "Solution", "Service",
 }
 
 _BRAND_PATTERN = re.compile(
@@ -60,6 +105,10 @@ def extract_brands_from_text(text: str) -> list[str]:
             continue
         if len(candidate) < 2:
             continue
+        brand = _normalize_to_brand(candidate)
+        if brand in _STOPWORDS:
+            continue
+        mentions.append(brand)
         mentions.append(_normalize_to_brand(candidate))
     return mentions
 

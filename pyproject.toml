@@ -9,6 +9,8 @@ description = "MerchAI NOBE Analysis App"
 authors = [{name = "MerchAI Team"}]
 dependencies = [
     "requests",
+    "flask",
+    "flask-cors",
     "selenium>=4.0.0",
     "streamlit",
 ]
