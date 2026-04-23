@@ -68,7 +68,7 @@ def main() -> None:
     try:
         html = get_page_html(url)
         #print(html)
-        logger.info(html)
+        logger.info(f"Loaded {len(html)} characters from {url}")
     except Exception as e:
         #print(f"Error: {e}", file=sys.stderr)
         logger.error(f"Error: {e}")
