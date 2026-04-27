@@ -5,7 +5,7 @@ DB path defaults to data/merchai.db, overridable via DB_PATH env variable.
 
 Schema
 ------
-runs(id INTEGER PK, prompt TEXT, timestamp TEXT, raw_response TEXT, brands_json TEXT)
+runs(id INTEGER PK, prompt_id TEXT, prompt_version TEXT, timestamp TEXT, raw_response TEXT, brands_json TEXT)
 """
 from __future__ import annotations
 
