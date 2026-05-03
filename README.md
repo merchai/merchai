@@ -33,3 +33,16 @@ MerchAI is a Generative Engine Optimization (GEO) and Brand Visibility Tracking 
 - `tests/` tests
 - `.github/workflows/ci.yml` CI checks for lint, typecheck, tests
 - `.devcontainer/` dev container config
+
+Setup
+bash# Install dependencies
+pip install -r requirements.txt
+
+# Set your Perplexity API key
+export PERPLEXITY_API_KEY=your_key_here
+
+# Run the dashboard
+streamlit run app/dashboard.py
+
+# Or run the pipeline directly from CLI
+python -m src.pipeline hoodies "t-shirts" "varsity jackets"
