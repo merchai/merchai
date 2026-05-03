@@ -221,9 +221,7 @@ with tab3:
 
         st.markdown("### SOV Heatmap")
         st.dataframe(
-            df_comp.style
-                .format("{:.1f}%")
-                .background_gradient(cmap="Purples", axis=None),
+            df_comp.style.format("{:.1f}%"),
             use_container_width=True,
         )
 
